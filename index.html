@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Roblox Update Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { background: #0d1117; color: #fff; font-family: Poppins, sans-serif; text-align: center; padding-top: 80px; }
+  h1 { font-size: 28px; margin-bottom: 20px; }
+  .btn { padding: 16px 40px; border-radius: 12px; font-size: 22px; border: none; cursor: pointer; color: white; margin: 10px; transition: 0.25s; font-weight: 600; }
+  .start { background: #1fbd43; }
+  .start:hover { background: #27d64f; }
+  .stop { background: #e63939; }
+  .stop:hover { background: #ff4646; }
+  #log { margin-top: 40px; font-size: 16px; opacity: 0.85; white-space: pre-line; }
+  input { padding: 10px; width: 80%; border-radius: 8px; border: none; margin-bottom: 20px; outline: none; }
+</style>
+</head>
+<body>
+
+<h1>ROBLOX UPDATE VERSION TRACKER</h1>
+
+<input id="webhook" placeholder="https://discord.com/api/webhooks/1438878537875718226/JEB-AO6q0h55IVPTHAPXMCOPttMQHSRionEC2wMlmqGMpCntkP6gsBh1OSyp16edzL3a">
+
+<br>
+
+<button class="btn start" onclick="startBot()">START</button>
+<button class="btn stop" onclick="stopBot()">STOP</button>
+
+<div id="log"></div>
+
+<script>
+let interval = null;
+let oldIntl = null;
+let oldVNG = null;
+
+function log(msg) {
+  document.getElementById("log").innerHTML += msg + "\n";
+}
+
+async function getIntlVersion() {
+  try {
+    const res = await fetch("https://clientsettings.roblox.com/v2/client-version/WindowsPlayer");
+    const data = await res.json();
+    return data.clientVersionUpload;
+  } catch {
+    return null;
+  }
+}
+
+async function getVNGVersion() {
+  try {
+    // Sử dụng Google Play page để lấy version — đơn giản sử dụng fetch html
+    const res = await fetch("https://play.google.com/store/apps/details?id=com.roblox.client.vnggames&hl=vi");
+    const text = await res.text();
+    const m = text.match(/Current Version<\/div><span[^>]*><div[^>]*>([^<]+)<\/div>/);
+    if (m && m[1]) return m[1].trim();
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function sendWebhook(version, type) {
+  const url = document.getElementById("webhook").value;
+  if (!url) return alert("Chưa nhập webhook!");
+
+  const body = {
+    username: "ROBLOX UPDATE VERSION",
+    embeds: [{
+      title: "Roblox vừa cập nhật phiên bản mới!",
+      color: 65280,
+      fields: [
+        { name: "Loại Roblox", value: type, inline: true },
+        { name: "Phiên bản mới", value: version, inline: true }
+      ],
+      footer: { text: "Tự động gửi khi phát hiện cập nhật mới" },
+      timestamp: new Date().toISOString()
+    }]
+  };
+
+  fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  });
+}
+
+async function checkUpdate(sendInitial=false) {
+  const intl = await getIntlVersion();
+  const vng = await getVNGVersion();
+
+  if (sendInitial) {
+    if (intl) { log("Roblox quốc tế hiện tại: " + intl); sendWebhook(intl, "Roblox Quốc Tế (Khởi động)"); }
+    if (vng) { log("Roblox VN hiện tại: " + vng); sendWebhook(vng, "Roblox VN (Khởi động)"); }
+    oldIntl = intl;
+    oldVNG = vng;
+    return;
+  }
+
+  if (intl && intl !== oldIntl) {
+    log("Roblox quốc tế cập nhật: " + intl);
+    sendWebhook(intl, "Roblox Quốc Tế");
+    oldIntl = intl;
+  }
+
+  if (vng && vng !== oldVNG) {
+    log("Roblox VN cập nhật: " + vng);
+    sendWebhook(vng, "Roblox VN");
+    oldVNG = vng;
+  }
+}
+
+function startBot() {
+  if (interval) return;
+  log("Đã bật theo dõi cập nhật...");
+  checkUpdate(true);
+  interval = setInterval(() => checkUpdate(false), 30000);
+}
+
+function stopBot() {
+  clearInterval(interval);
+  interval = null;
+  log("Đã tắt theo dõi.");
+}
+</script>
+
+</body>
+</html>
